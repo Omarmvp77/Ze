@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع الروابط - Tracking URL</title>
+    <style>
+        /* ملف styles.css */
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #a29bfe;
+            --background-color: #f0f0f0;
+            --glass-color: rgba(255, 255, 255, 0.1);
+            --text-color: #2d3436;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: var(--glass-color);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .glassmorphism {
+            background: var(--glass-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            color: var(--primary-color);
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid var(--secondary-color);
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: var(--secondary-color);
+        }
+
+        #shortUrlContainer {
+            margin-top: 20px;
+        }
+
+        #shortUrl {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        #shortUrl:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #analytics {
+            margin-top: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid var(--secondary-color);
+            text-align: center;
+        }
+
+        th {
+            background: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container glassmorphism">
+        <h1>تتبع الروابط</h1>
+        <form id="urlForm">
+            <input type="url" id="originalUrl" placeholder="أدخل الرابط هنا" required>
+            <button type="submit">إنشاء رابط مختصر</button>
+        </form>
+        <div id="shortUrlContainer" class="hidden">
+            <p>رابطك المختصر:</p>
+            <a id="shortUrl" target="_blank"></a>
+        </div>
+        <div id="analytics">
+            <h2>إحصائيات الزيارات</h2>
+            <table id="visitsTable">
+                <thead>
+                    <tr>
+                        <th>عدد النقرات</th>
+                        <th>الدولة</th>
+                        <th>الجهاز</th>
+                        <th>المتصفح</th>
+                        <th>الموقع المرجعي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- البيانات ستضاف هنا عبر JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        // ملف script.js
+        document.getElementById('urlForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const originalUrl = document.getElementById('originalUrl').value;
+
+            // إنشاء رابط مختصر فريد
+            const shortUrl = generateShortUrl(originalUrl);
+            document.getElementById('shortUrl').href = shortUrl;
+            document.getElementById('shortUrl').textContent = shortUrl;
+            document.getElementById('shortUrlContainer').classList.remove('hidden');
+
+            // حفظ الرابط في LocalStorage
+            saveUrl(originalUrl, shortUrl);
+        });
+
+        function generateShortUrl(originalUrl) {
+            const uniqueId = Math.random().toString(36).substring(2, 8);
+            return `${window.location.origin}/${uniqueId}`;
+        }
+
+        function saveUrl(originalUrl, shortUrl) {
+            const links = JSON.parse(localStorage.getItem('links')) || [];
+            links.push({ originalUrl, shortUrl, clicks: 0, visits: [] });
+            localStorage.setItem('links', JSON.stringify(links));
+        }
+
+        // جمع بيانات الزائر
+        function trackVisitor(shortUrl) {
+            const links = JSON.parse(localStorage.getItem('links'));
+            const link = links.find(link => link.shortUrl === shortUrl);
+
+            if (link) {
+                link.clicks += 1;
+                const visit = {
+                    timestamp: new Date().toISOString(),
+                    device: navigator.userAgent,
+                    country: getCountry(),
+                    referrer: document.referrer || 'غير معروف',
+                };
+                link.visits.push(visit);
+                localStorage.setItem('links', JSON.stringify(links));
+                updateAnalytics(link);
+            }
+        }
+
+        function getCountry() {
+            // يمكن استخدام API خارجي للحصول على الدولة (مثل ipinfo.io)
+            return 'غير معروف'; // افتراضي
+        }
+
+        function updateAnalytics(link) {
+            const tableBody = document.querySelector('#visitsTable tbody');
+            tableBody.innerHTML = link.visits.map(visit => `
+                <tr>
+                    <td>${link.clicks}</td>
+                    <td>${visit.country}</td>
+                    <td>${visit.device}</td>
+                    <td>${navigator.userAgent}</td>
+                    <td>${visit.referrer}</td>
+                </tr>
+            `).join('');
+        }
+
+        // عند تحميل الصفحة، تحقق من وجود رابط مختصر
+        const path = window.location.pathname.substring(1);
+        if (path) {
+            trackVisitor(`${window.location.origin}/${path}`);
+        }
+    </script>
+</body>
+</html>
